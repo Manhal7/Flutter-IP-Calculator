@@ -27,7 +27,7 @@
 
 1. قم بنسخ المستودع:
 ```bash
-git clone https://github.com/[username]/ip_calculator.git
+git clone https://github.com/Manhal7/ip_calculator.git
 ```
 
 2. انتقل إلى مجلد المشروع:
