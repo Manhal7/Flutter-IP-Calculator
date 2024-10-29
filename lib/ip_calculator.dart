@@ -1,3 +1,4 @@
+// Main application widget that sets up the theme and initial screen
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math';
@@ -10,11 +11,13 @@ class IPCalculatorApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'IP Calculator',
+      // Configure light theme settings
       theme: ThemeData(
         primarySwatch: Colors.blue,
         fontFamily: 'Courier',
         brightness: Brightness.light,
       ),
+      // Configure dark theme settings
       darkTheme: ThemeData(
         primarySwatch: Colors.blue,
         fontFamily: 'Courier',
@@ -26,20 +29,21 @@ class IPCalculatorApp extends StatelessWidget {
   }
 }
 
+// Data model class to store network calculation results
 class NetworkInfo {
-  final String address;
-  final String netmask;
-  final String wildcard;
-  final String network;
-  final String broadcast;
-  final String hostMin;
-  final String hostMax;
-  final int hostsNet;
-  final String networkClass;
-  final String networkType;
-  final String binary;
-  final int cidr;
-  final Map<String, dynamic> additionalInfo;
+  final String address; // IP address
+  final String netmask; // Subnet mask in decimal format
+  final String wildcard; // Wildcard mask
+  final String network; // Network address
+  final String broadcast; // Broadcast address
+  final String hostMin; // First usable host address
+  final String hostMax; // Last usable host address
+  final int hostsNet; // Number of usable hosts
+  final String networkClass; // Network class (A, B, C, D, or E)
+  final String networkType; // Network type (Private, Public, Multicast)
+  final String binary; // Binary representation of IP
+  final int cidr; // CIDR notation value
+  final Map<String, dynamic> additionalInfo; // Additional network details
 
   NetworkInfo({
     required this.address,
@@ -57,6 +61,7 @@ class NetworkInfo {
     required this.additionalInfo,
   });
 
+  // Convert NetworkInfo object to JSON format
   Map<String, dynamic> toJson() => {
         'address': address,
         'netmask': netmask,
@@ -74,6 +79,7 @@ class NetworkInfo {
       };
 }
 
+// Main screen widget for the IP calculator
 class IPCalculatorScreen extends StatefulWidget {
   const IPCalculatorScreen({super.key});
 
@@ -96,15 +102,18 @@ class _IPCalculatorScreenState extends State<IPCalculatorScreen> {
     super.dispose();
   }
 
+  // Convert decimal number to 8-bit binary string
   String _intToBinary(int number) {
     return number.toRadixString(2).padLeft(8, '0');
   }
 
+  // Convert IP address to binary notation
   String _ipToBinary(String ip) {
     List<String> parts = ip.split('.');
     return parts.map((part) => _intToBinary(int.parse(part))).join('.');
   }
 
+  // Determine network class based on first octet
   String _getNetworkClass(List<int> ipOctets) {
     int firstOctet = ipOctets[0];
     if (firstOctet < 128) return 'Class A';
@@ -114,13 +123,14 @@ class _IPCalculatorScreenState extends State<IPCalculatorScreen> {
     return 'Class E';
   }
 
+  // Generate additional network information
   Map<String, dynamic> _getAdditionalInfo(List<int> ipOctets, int mask) {
     return {
       'Default Gateway': '${ipOctets[0]}.${ipOctets[1]}.${ipOctets[2]}.1',
-      'DHCP Range':
-          '${ipOctets[0]}.${ipOctets[1]}.${ipOctets[2]}.100 - ${ipOctets[0]}.${ipOctets[1]}.${ipOctets[2]}.200',
-      'Reverse DNS':
-          '${ipOctets[3]}.${ipOctets[2]}.${ipOctets[1]}.${ipOctets[0]}.in-addr.arpa',
+      'DHCP Range': '${ipOctets[0]}.${ipOctets[1]}.${ipOctets[2]}.100 - '
+          '${ipOctets[0]}.${ipOctets[1]}.${ipOctets[2]}.200',
+      'Reverse DNS': '${ipOctets[3]}.${ipOctets[2]}.${ipOctets[1]}'
+          '.${ipOctets[0]}.in-addr.arpa',
       'Subnet Bits': mask,
       'Host Bits': 32 - mask,
       'RFC1918 Compliant': _isRFC1918Compliant(ipOctets) ? 'Yes' : 'No',
@@ -131,26 +141,31 @@ class _IPCalculatorScreenState extends State<IPCalculatorScreen> {
     };
   }
 
+  // Check if IP address is RFC1918 compliant (private address)
   bool _isRFC1918Compliant(List<int> ipOctets) {
     return (ipOctets[0] == 10) ||
         (ipOctets[0] == 172 && ipOctets[1] >= 16 && ipOctets[1] <= 31) ||
         (ipOctets[0] == 192 && ipOctets[1] == 168);
   }
 
+  // Check if IP address is in multicast range
   bool _isMulticast(List<int> ipOctets) {
     return ipOctets[0] >= 224 && ipOctets[0] <= 239;
   }
 
+  // Determine network type (Private, Public, or Multicast)
   String _getNetworkType(List<int> ipOctets) {
     if (_isRFC1918Compliant(ipOctets)) return 'Private Internet';
     if (_isMulticast(ipOctets)) return 'Multicast';
     return 'Public Internet';
   }
 
+  // Pad IP address string for aligned display
   String _padIP(String ip) {
     return ip.padRight(15);
   }
 
+  // Copy calculation results to clipboard
   void _copyToClipboard(BuildContext context) {
     if (_result.isNotEmpty) {
       Clipboard.setData(ClipboardData(text: _result));
@@ -160,10 +175,11 @@ class _IPCalculatorScreenState extends State<IPCalculatorScreen> {
     }
   }
 
+  // Export network information as JSON
   void _exportAsJson() {
     if (_networkInfo != null) {
       final jsonString =
-          JsonEncoder.withIndent('  ').convert(_networkInfo!.toJson());
+          const JsonEncoder.withIndent('  ').convert(_networkInfo!.toJson());
       Clipboard.setData(ClipboardData(text: jsonString));
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('JSON exported to clipboard')),
@@ -171,18 +187,21 @@ class _IPCalculatorScreenState extends State<IPCalculatorScreen> {
     }
   }
 
+  // Main calculation function
   void _calculateNetwork() {
     setState(() {
       _hasError = false;
       _errorMessage = '';
       _networkInfo = null;
 
+      // Validate input fields
       if (_ipController.text.isEmpty || _maskController.text.isEmpty) {
         _hasError = true;
         _errorMessage = 'Please enter both IP address and subnet mask';
         return;
       }
 
+      // Parse and validate IP address
       List<String> ipParts = _ipController.text.split('.');
       if (ipParts.length != 4) {
         _hasError = true;
@@ -195,7 +214,7 @@ class _IPCalculatorScreenState extends State<IPCalculatorScreen> {
         try {
           int octet = int.parse(part);
           if (octet < 0 || octet > 255) {
-            throw FormatException();
+            throw const FormatException();
           }
           ipOctets.add(octet);
         } catch (e) {
@@ -205,11 +224,12 @@ class _IPCalculatorScreenState extends State<IPCalculatorScreen> {
         }
       }
 
+      // Parse and validate subnet mask
       int mask;
       try {
         mask = int.parse(_maskController.text);
         if (mask < 0 || mask > 32) {
-          throw FormatException();
+          throw const FormatException();
         }
       } catch (e) {
         _hasError = true;
@@ -217,6 +237,7 @@ class _IPCalculatorScreenState extends State<IPCalculatorScreen> {
         return;
       }
 
+      // Calculate network parameters
       int fullMask = (0xFFFFFFFF << (32 - mask)) & 0xFFFFFFFF;
       int wildcard = ~fullMask & 0xFFFFFFFF;
 
@@ -230,6 +251,7 @@ class _IPCalculatorScreenState extends State<IPCalculatorScreen> {
       int firstHostInt = networkInt + (mask == 32 ? 0 : 1);
       int lastHostInt = broadcastInt - (mask == 32 ? 0 : 1);
 
+      // Convert results to string format
       String ipAddress = _ipController.text;
       String netmaskStr = _intToIp(fullMask);
       String wildcardStr = _intToIp(wildcard);
@@ -238,12 +260,15 @@ class _IPCalculatorScreenState extends State<IPCalculatorScreen> {
       String firstHostStr = _intToIp(firstHostInt);
       String lastHostStr = _intToIp(lastHostInt);
 
+      // Calculate total usable hosts
       int totalHosts = mask == 32 ? 1 : (pow(2, (32 - mask)).toInt() - 2);
 
+      // Get network classification and type
       String networkClass = _getNetworkClass(ipOctets);
       String networkType = _getNetworkType(ipOctets);
       Map<String, dynamic> additionalInfo = _getAdditionalInfo(ipOctets, mask);
 
+      // Create NetworkInfo object with results
       _networkInfo = NetworkInfo(
         address: ipAddress,
         netmask: netmaskStr,
@@ -260,6 +285,7 @@ class _IPCalculatorScreenState extends State<IPCalculatorScreen> {
         additionalInfo: additionalInfo,
       );
 
+      // Format results for display
       _result = '''
 Address:   ${_padIP(ipAddress)}${_ipToBinary(ipAddress)}
 Netmask:   ${_padIP(netmaskStr)} = $mask  ${_ipToBinary(netmaskStr)}
@@ -285,6 +311,7 @@ Network Capacity Utilization: ${additionalInfo['Network Capacity Utilization']}'
     });
   }
 
+  // Convert integer to IP address string
   String _intToIp(int ipInt) {
     return '${(ipInt >> 24) & 255}.'
         '${(ipInt >> 16) & 255}.'
@@ -304,6 +331,7 @@ Network Capacity Utilization: ${additionalInfo['Network Capacity Utilization']}'
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Input card with IP and subnet mask fields
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -345,6 +373,7 @@ Network Capacity Utilization: ${additionalInfo['Network Capacity Utilization']}'
               ),
             ),
             const SizedBox(height: 16),
+            // Error message display
             if (_hasError)
               Container(
                 padding: const EdgeInsets.all(8),
@@ -355,6 +384,7 @@ Network Capacity Utilization: ${additionalInfo['Network Capacity Utilization']}'
                   textAlign: TextAlign.center,
                 ),
               ),
+            // Results display area
             if (!_hasError && _result.isNotEmpty)
               Expanded(
                 child: Card(
@@ -363,6 +393,7 @@ Network Capacity Utilization: ${additionalInfo['Network Capacity Utilization']}'
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        // Copy and Export buttons
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
@@ -380,6 +411,7 @@ Network Capacity Utilization: ${additionalInfo['Network Capacity Utilization']}'
                           ],
                         ),
                         const Divider(),
+                        // Calculation results display
                         SelectableText(
                           _result,
                           style: const TextStyle(
