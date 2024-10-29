@@ -4,82 +4,75 @@ import 'package:flutter/services.dart';
 import 'dart:math';
 import 'dart:convert';
 
-class IPCalculatorApp extends StatelessWidget {
-  const IPCalculatorApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'IP Calculator',
-      // Configure light theme settings
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        fontFamily: 'Courier',
-        brightness: Brightness.light,
-      ),
-      // Configure dark theme settings
-      darkTheme: ThemeData(
-        primarySwatch: Colors.blue,
-        fontFamily: 'Courier',
-        brightness: Brightness.dark,
-      ),
-      home: const IPCalculatorScreen(),
-      debugShowCheckedModeBanner: false,
-    );
-  }
-}
-
-// Data model class to store network calculation results
+// Enhanced NetworkInfo class to support both IPv4 and IPv6
 class NetworkInfo {
-  final String address; // IP address
-  final String netmask; // Subnet mask in decimal format
-  final String wildcard; // Wildcard mask
+  final String address; // IP address (IPv4 or IPv6)
+  final String netmask; // Subnet mask
   final String network; // Network address
-  final String broadcast; // Broadcast address
-  final String hostMin; // First usable host address
-  final String hostMax; // Last usable host address
-  final int hostsNet; // Number of usable hosts
-  final String networkClass; // Network class (A, B, C, D, or E)
-  final String networkType; // Network type (Private, Public, Multicast)
-  final String binary; // Binary representation of IP
+  final String binary; // Binary representation
   final int cidr; // CIDR notation value
-  final Map<String, dynamic> additionalInfo; // Additional network details
+  final bool isIPv6; // Flag to indicate IP version
+  final Map<String, dynamic> details; // Additional network information
+
+  // IPv4-specific fields
+  final String? wildcard; // Wildcard mask (IPv4 only)
+  final String? broadcast; // Broadcast address (IPv4 only)
+  final String? hostMin; // First usable host (IPv4 only)
+  final String? hostMax; // Last usable host (IPv4 only)
+  final int? hostsNet; // Number of usable hosts (IPv4 only)
+  final String? networkClass; // Network class A, B, C, etc. (IPv4 only)
+
+  // IPv6-specific fields
+  final String? expandedAddress; // Fully expanded IPv6 address
+  final String? compressedAddress; // Compressed IPv6 address
+  final String? interfaceId; // Interface identifier
+  final String? globalId; // Global routing prefix
 
   NetworkInfo({
     required this.address,
     required this.netmask,
-    required this.wildcard,
     required this.network,
-    required this.broadcast,
-    required this.hostMin,
-    required this.hostMax,
-    required this.hostsNet,
-    required this.networkClass,
-    required this.networkType,
     required this.binary,
     required this.cidr,
-    required this.additionalInfo,
+    required this.isIPv6,
+    required this.details,
+    this.wildcard,
+    this.broadcast,
+    this.hostMin,
+    this.hostMax,
+    this.hostsNet,
+    this.networkClass,
+    this.expandedAddress,
+    this.compressedAddress,
+    this.interfaceId,
+    this.globalId,
   });
 
-  // Convert NetworkInfo object to JSON format
   Map<String, dynamic> toJson() => {
         'address': address,
         'netmask': netmask,
-        'wildcard': wildcard,
         'network': network,
-        'broadcast': broadcast,
-        'hostMin': hostMin,
-        'hostMax': hostMax,
-        'hostsNet': hostsNet,
-        'networkClass': networkClass,
-        'networkType': networkType,
         'binary': binary,
         'cidr': cidr,
-        'additionalInfo': additionalInfo,
+        'isIPv6': isIPv6,
+        'details': details,
+        if (!isIPv6) ...{
+          'wildcard': wildcard,
+          'broadcast': broadcast,
+          'hostMin': hostMin,
+          'hostMax': hostMax,
+          'hostsNet': hostsNet,
+          'networkClass': networkClass,
+        },
+        if (isIPv6) ...{
+          'expandedAddress': expandedAddress,
+          'compressedAddress': compressedAddress,
+          'interfaceId': interfaceId,
+          'globalId': globalId,
+        },
       };
 }
 
-// Main screen widget for the IP calculator
 class IPCalculatorScreen extends StatefulWidget {
   const IPCalculatorScreen({super.key});
 
@@ -93,6 +86,7 @@ class _IPCalculatorScreenState extends State<IPCalculatorScreen> {
   String _result = '';
   String _errorMessage = '';
   bool _hasError = false;
+  bool _isIPv6 = false;
   NetworkInfo? _networkInfo;
 
   @override
@@ -102,89 +96,197 @@ class _IPCalculatorScreenState extends State<IPCalculatorScreen> {
     super.dispose();
   }
 
-  // Convert decimal number to 8-bit binary string
-  String _intToBinary(int number) {
-    return number.toRadixString(2).padLeft(8, '0');
+  // Detect IP version from input
+  bool _detectIPv6(String ip) {
+    return ip.contains(':');
   }
 
-  // Convert IP address to binary notation
-  String _ipToBinary(String ip) {
-    List<String> parts = ip.split('.');
-    return parts.map((part) => _intToBinary(int.parse(part))).join('.');
-  }
+  // Validate IPv6 address format
+  bool _isValidIPv6(String ip) {
+    try {
+      List<String> parts = ip.split(':');
+      if (parts.length > 8) return false;
 
-  // Determine network class based on first octet
-  String _getNetworkClass(List<int> ipOctets) {
-    int firstOctet = ipOctets[0];
-    if (firstOctet < 128) return 'Class A';
-    if (firstOctet < 192) return 'Class B';
-    if (firstOctet < 224) return 'Class C';
-    if (firstOctet < 240) return 'Class D';
-    return 'Class E';
-  }
+      // Handle compressed notation (::)
+      if (ip.contains('::')) {
+        if (ip.indexOf('::') != ip.lastIndexOf('::')) return false;
+        int missingSegments = 8 - parts.where((p) => p.isNotEmpty).length;
+        if (missingSegments < 0) return false;
+      }
 
-  // Generate additional network information
-  Map<String, dynamic> _getAdditionalInfo(List<int> ipOctets, int mask) {
-    return {
-      'Default Gateway': '${ipOctets[0]}.${ipOctets[1]}.${ipOctets[2]}.1',
-      'DHCP Range': '${ipOctets[0]}.${ipOctets[1]}.${ipOctets[2]}.100 - '
-          '${ipOctets[0]}.${ipOctets[1]}.${ipOctets[2]}.200',
-      'Reverse DNS': '${ipOctets[3]}.${ipOctets[2]}.${ipOctets[1]}'
-          '.${ipOctets[0]}.in-addr.arpa',
-      'Subnet Bits': mask,
-      'Host Bits': 32 - mask,
-      'RFC1918 Compliant': _isRFC1918Compliant(ipOctets) ? 'Yes' : 'No',
-      'Multicast': _isMulticast(ipOctets) ? 'Yes' : 'No',
-      'Broadcast Domain Size': pow(2, 32 - mask).toString(),
-      'Network Capacity Utilization':
-          '${(pow(2, 32 - mask) - 2) / pow(2, 32 - mask) * 100}%',
-    };
-  }
+      // Validate each hexadecimal part
+      for (String part in parts) {
+        if (part.isEmpty) continue;
+        if (part.length > 4) return false;
+        int? value = int.tryParse(part, radix: 16);
+        if (value == null || value < 0 || value > 0xFFFF) return false;
+      }
 
-  // Check if IP address is RFC1918 compliant (private address)
-  bool _isRFC1918Compliant(List<int> ipOctets) {
-    return (ipOctets[0] == 10) ||
-        (ipOctets[0] == 172 && ipOctets[1] >= 16 && ipOctets[1] <= 31) ||
-        (ipOctets[0] == 192 && ipOctets[1] == 168);
-  }
-
-  // Check if IP address is in multicast range
-  bool _isMulticast(List<int> ipOctets) {
-    return ipOctets[0] >= 224 && ipOctets[0] <= 239;
-  }
-
-  // Determine network type (Private, Public, or Multicast)
-  String _getNetworkType(List<int> ipOctets) {
-    if (_isRFC1918Compliant(ipOctets)) return 'Private Internet';
-    if (_isMulticast(ipOctets)) return 'Multicast';
-    return 'Public Internet';
-  }
-
-  // Pad IP address string for aligned display
-  String _padIP(String ip) {
-    return ip.padRight(15);
-  }
-
-  // Copy calculation results to clipboard
-  void _copyToClipboard(BuildContext context) {
-    if (_result.isNotEmpty) {
-      Clipboard.setData(ClipboardData(text: _result));
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Results copied to clipboard')),
-      );
+      return true;
+    } catch (e) {
+      return false;
     }
   }
 
-  // Export network information as JSON
-  void _exportAsJson() {
-    if (_networkInfo != null) {
-      final jsonString =
-          const JsonEncoder.withIndent('  ').convert(_networkInfo!.toJson());
-      Clipboard.setData(ClipboardData(text: jsonString));
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('JSON exported to clipboard')),
-      );
+  // Expand shortened IPv6 address to full form
+  String _expandIPv6(String ip) {
+    if (!ip.contains('::')) {
+      return ip.split(':').map((part) => part.padLeft(4, '0')).join(':');
     }
+
+    List<String> parts = ip.split('::');
+    List<String> start = parts[0].isEmpty ? [] : parts[0].split(':');
+    List<String> end =
+        parts.length > 1 && parts[1].isNotEmpty ? parts[1].split(':') : [];
+
+    int missing = 8 - (start.length + end.length);
+    List<String> middle = List.filled(missing, '0000');
+
+    return [...start, ...middle, ...end]
+        .map((part) => part.padLeft(4, '0'))
+        .join(':');
+  }
+
+  // Convert IPv6 address to compressed form
+  String _compressIPv6(String expandedIP) {
+    List<String> parts = expandedIP.split(':');
+    List<List<String>> zeroGroups = [];
+    List<String> currentGroup = [];
+
+    // Find zero groups
+    for (int i = 0; i < parts.length; i++) {
+      if (parts[i] == '0000') {
+        currentGroup.add(parts[i]);
+      } else if (currentGroup.isNotEmpty) {
+        zeroGroups.add(List.from(currentGroup));
+        currentGroup = [];
+      }
+    }
+    if (currentGroup.isNotEmpty) {
+      zeroGroups.add(currentGroup);
+    }
+
+    // Find longest zero sequence
+    List<String>? longestGroup;
+    int maxLength = 0;
+    for (var group in zeroGroups) {
+      if (group.length > maxLength) {
+        maxLength = group.length;
+        longestGroup = group;
+      }
+    }
+
+    // Compress the address
+    if (longestGroup != null && longestGroup.length > 1) {
+      int startIndex = parts.indexOf(longestGroup.first);
+      parts.replaceRange(startIndex, startIndex + longestGroup.length, ['']);
+    }
+
+    return parts
+        .map((part) => part.isEmpty ? part : part.replaceAll(RegExp('^0+'), ''))
+        .join(':')
+        .replaceAll(RegExp(':+'), '::');
+  }
+
+  // Calculate IPv6 network information
+  void _calculateIPv6Network(String ip, int prefixLength) {
+    // Expand the address to full form
+    String expandedIP = _expandIPv6(ip);
+
+    // Convert to binary
+    String binary = expandedIP
+        .split(':')
+        .map((part) =>
+            int.parse(part, radix: 16).toRadixString(2).padLeft(16, '0'))
+        .join('');
+
+    // Calculate network prefix
+    String networkBinary = binary.substring(0, prefixLength).padRight(128, '0');
+    String networkHex = '';
+    for (int i = 0; i < 8; i++) {
+      String chunk = networkBinary.substring(i * 16, (i + 1) * 16);
+      networkHex +=
+          int.parse(chunk, radix: 2).toRadixString(16).padLeft(4, '0');
+      if (i < 7) networkHex += ':';
+    }
+
+    // Create netmask
+    String netmaskBinary = '1' * prefixLength + '0' * (128 - prefixLength);
+    String netmaskHex = '';
+    for (int i = 0; i < 8; i++) {
+      String chunk = netmaskBinary.substring(i * 16, (i + 1) * 16);
+      netmaskHex +=
+          int.parse(chunk, radix: 2).toRadixString(16).padLeft(4, '0');
+      if (i < 7) netmaskHex += ':';
+    }
+
+    // Extract interface ID and global routing prefix
+    String interfaceId = expandedIP.split(':').sublist(4).join(':');
+    String globalId = expandedIP.split(':').sublist(0, 4).join(':');
+
+    // Create NetworkInfo object
+    _networkInfo = NetworkInfo(
+      address: ip,
+      netmask: netmaskHex,
+      network: networkHex,
+      binary: binary,
+      cidr: prefixLength,
+      isIPv6: true,
+      expandedAddress: expandedIP,
+      compressedAddress: _compressIPv6(expandedIP),
+      interfaceId: interfaceId,
+      globalId: globalId,
+      details: {
+        'Scope': _getIPv6Scope(expandedIP),
+        'Type': _getIPv6Type(expandedIP),
+        'Interface ID': interfaceId,
+        'Global Routing Prefix': globalId,
+        'Total Addresses': '2^${128 - prefixLength}',
+      },
+    );
+
+    // Format results for display
+    _result = '''
+IPv6 Address: $ip
+Expanded:     ${_networkInfo!.expandedAddress}
+Compressed:   ${_networkInfo!.compressedAddress}
+Prefix:       /$prefixLength
+
+Network Information:
+------------------
+Network:      ${_networkInfo!.network}/${_networkInfo!.cidr}
+Netmask:      ${_networkInfo!.netmask}
+Scope:        ${_networkInfo!.details['Scope']}
+Type:         ${_networkInfo!.details['Type']}
+
+Address Components:
+----------------
+Global ID:    ${_networkInfo!.globalId}
+Interface ID: ${_networkInfo!.interfaceId}
+
+Additional Details:
+----------------
+Total Addresses: ${_networkInfo!.details['Total Addresses']}
+''';
+  }
+
+  // Determine IPv6 address scope
+  String _getIPv6Scope(String ip) {
+    if (ip.toLowerCase().startsWith('fe80:')) return 'Link-Local';
+    if (ip.toLowerCase().startsWith('fec0:')) return 'Site-Local';
+    if (ip.toLowerCase().startsWith('fc00:') ||
+        ip.toLowerCase().startsWith('fd00:')) return 'Unique Local';
+    if (ip.toLowerCase().startsWith('ff00:')) return 'Multicast';
+    return 'Global';
+  }
+
+  // Determine IPv6 address type
+  String _getIPv6Type(String ip) {
+    if (ip.toLowerCase().startsWith('ff00:')) return 'Multicast';
+    if (ip.toLowerCase().startsWith('fe80:')) return 'Link-Local Unicast';
+    if (ip.toLowerCase().startsWith('fc00:') ||
+        ip.toLowerCase().startsWith('fd00:')) return 'Unique Local Unicast';
+    return 'Global Unicast';
   }
 
   // Main calculation function
@@ -194,129 +296,64 @@ class _IPCalculatorScreenState extends State<IPCalculatorScreen> {
       _errorMessage = '';
       _networkInfo = null;
 
-      // Validate input fields
       if (_ipController.text.isEmpty || _maskController.text.isEmpty) {
         _hasError = true;
-        _errorMessage = 'Please enter both IP address and subnet mask';
+        _errorMessage = 'Please enter both IP address and prefix length';
         return;
       }
 
-      // Parse and validate IP address
-      List<String> ipParts = _ipController.text.split('.');
-      if (ipParts.length != 4) {
-        _hasError = true;
-        _errorMessage = 'Invalid IP address';
-        return;
-      }
+      _isIPv6 = _detectIPv6(_ipController.text);
 
-      List<int> ipOctets = [];
-      for (String part in ipParts) {
-        try {
-          int octet = int.parse(part);
-          if (octet < 0 || octet > 255) {
-            throw const FormatException();
-          }
-          ipOctets.add(octet);
-        } catch (e) {
-          _hasError = true;
-          _errorMessage = 'Invalid IP address';
-          return;
-        }
-      }
-
-      // Parse and validate subnet mask
-      int mask;
+      // Parse and validate prefix length
+      int prefixLength;
       try {
-        mask = int.parse(_maskController.text);
-        if (mask < 0 || mask > 32) {
+        prefixLength = int.parse(_maskController.text);
+        if (_isIPv6 && (prefixLength < 0 || prefixLength > 128)) {
+          throw const FormatException();
+        } else if (!_isIPv6 && (prefixLength < 0 || prefixLength > 32)) {
           throw const FormatException();
         }
       } catch (e) {
         _hasError = true;
-        _errorMessage = 'Invalid subnet mask (must be between 0 and 32)';
+        _errorMessage = _isIPv6
+            ? 'Invalid prefix length (must be between 0 and 128)'
+            : 'Invalid prefix length (must be between 0 and 32)';
         return;
       }
 
-      // Calculate network parameters
-      int fullMask = (0xFFFFFFFF << (32 - mask)) & 0xFFFFFFFF;
-      int wildcard = ~fullMask & 0xFFFFFFFF;
+      if (_isIPv6) {
+        // Validate IPv6 address
+        if (!_isValidIPv6(_ipController.text)) {
+          _hasError = true;
+          _errorMessage = 'Invalid IPv6 address';
+          return;
+        }
+        _calculateIPv6Network(_ipController.text, prefixLength);
+      } else {
+        // IPv4 calculation
+        try {
+          // Split and validate IPv4 address
+          List<String> parts = _ipController.text.split('.');
+          if (parts.length != 4) {
+            throw const FormatException('Invalid IPv4 address format');
+          }
 
-      int ipAsInt = (ipOctets[0] << 24) |
-          (ipOctets[1] << 16) |
-          (ipOctets[2] << 8) |
-          ipOctets[3];
+          List<int> ipOctets = parts.map((part) {
+            int value = int.parse(part);
+            if (value < 0 || value > 255) {
+              throw const FormatException('Invalid IPv4 octet value');
+            }
+            return value;
+          }).toList();
 
-      int networkInt = ipAsInt & fullMask;
-      int broadcastInt = networkInt | wildcard;
-      int firstHostInt = networkInt + (mask == 32 ? 0 : 1);
-      int lastHostInt = broadcastInt - (mask == 32 ? 0 : 1);
-
-      // Convert results to string format
-      String ipAddress = _ipController.text;
-      String netmaskStr = _intToIp(fullMask);
-      String wildcardStr = _intToIp(wildcard);
-      String networkStr = _intToIp(networkInt);
-      String broadcastStr = _intToIp(broadcastInt);
-      String firstHostStr = _intToIp(firstHostInt);
-      String lastHostStr = _intToIp(lastHostInt);
-
-      // Calculate total usable hosts
-      int totalHosts = mask == 32 ? 1 : (pow(2, (32 - mask)).toInt() - 2);
-
-      // Get network classification and type
-      String networkClass = _getNetworkClass(ipOctets);
-      String networkType = _getNetworkType(ipOctets);
-      Map<String, dynamic> additionalInfo = _getAdditionalInfo(ipOctets, mask);
-
-      // Create NetworkInfo object with results
-      _networkInfo = NetworkInfo(
-        address: ipAddress,
-        netmask: netmaskStr,
-        wildcard: wildcardStr,
-        network: networkStr,
-        broadcast: broadcastStr,
-        hostMin: firstHostStr,
-        hostMax: lastHostStr,
-        hostsNet: totalHosts,
-        networkClass: networkClass,
-        networkType: networkType,
-        binary: _ipToBinary(ipAddress),
-        cidr: mask,
-        additionalInfo: additionalInfo,
-      );
-
-      // Format results for display
-      _result = '''
-Address:   ${_padIP(ipAddress)}${_ipToBinary(ipAddress)}
-Netmask:   ${_padIP(netmaskStr)} = $mask  ${_ipToBinary(netmaskStr)}
-Wildcard:  ${_padIP(wildcardStr)}${_ipToBinary(wildcardStr)}
-=>
-Network:   ${_padIP('$networkStr/$mask')}${_ipToBinary(networkStr)}  ($networkClass)
-Broadcast: ${_padIP(broadcastStr)}${_ipToBinary(broadcastStr)}
-HostMin:   ${_padIP(firstHostStr)}${_ipToBinary(firstHostStr)}
-HostMax:   ${_padIP(lastHostStr)}${_ipToBinary(lastHostStr)}
-Hosts/Net: $totalHosts                     ($networkType)
-
-Additional Network Information:
------------------------------
-Default Gateway: ${additionalInfo['Default Gateway']}
-DHCP Range: ${additionalInfo['DHCP Range']}
-Reverse DNS: ${additionalInfo['Reverse DNS']}
-Subnet Bits: ${additionalInfo['Subnet Bits']}
-Host Bits: ${additionalInfo['Host Bits']}
-RFC1918 Compliant: ${additionalInfo['RFC1918 Compliant']}
-Multicast: ${additionalInfo['Multicast']}
-Broadcast Domain Size: ${additionalInfo['Broadcast Domain Size']}
-Network Capacity Utilization: ${additionalInfo['Network Capacity Utilization']}''';
+          _calculateIPv4Network(ipOctets, prefixLength);
+        } catch (e) {
+          _hasError = true;
+          _errorMessage = 'Invalid IPv4 address';
+          return;
+        }
+      }
     });
-  }
-
-  // Convert integer to IP address string
-  String _intToIp(int ipInt) {
-    return '${(ipInt >> 24) & 255}.'
-        '${(ipInt >> 16) & 255}.'
-        '${(ipInt >> 8) & 255}.'
-        '${ipInt & 255}';
   }
 
   @override
@@ -331,7 +368,6 @@ Network Capacity Utilization: ${additionalInfo['Network Capacity Utilization']}'
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Input card with IP and subnet mask fields
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -341,21 +377,26 @@ Network Capacity Utilization: ${additionalInfo['Network Capacity Utilization']}'
                     TextField(
                       controller: _ipController,
                       decoration: const InputDecoration(
-                        labelText: 'IP Address',
-                        hintText: 'e.g., 192.168.1.1',
+                        labelText: 'IP Address (IPv4 or IPv6)',
+                        hintText: 'e.g., 192.168.1.1 or 2001:db8::1',
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.language),
                       ),
                       style: const TextStyle(fontFamily: 'Courier'),
+                      onChanged: (value) {
+                        setState(() {
+                          _isIPv6 = _detectIPv6(value);
+                        });
+                      },
                     ),
                     const SizedBox(height: 16),
                     TextField(
                       controller: _maskController,
-                      decoration: const InputDecoration(
-                        labelText: 'Subnet Mask (CIDR)',
-                        hintText: 'e.g., 24',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.filter_list),
+                      decoration: InputDecoration(
+                        labelText: 'Prefix Length (CIDR)',
+                        hintText: _isIPv6 ? 'e.g., 64' : 'e.g., 24',
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.filter_list),
                       ),
                       keyboardType: TextInputType.number,
                     ),
@@ -373,7 +414,6 @@ Network Capacity Utilization: ${additionalInfo['Network Capacity Utilization']}'
               ),
             ),
             const SizedBox(height: 16),
-            // Error message display
             if (_hasError)
               Container(
                 padding: const EdgeInsets.all(8),
@@ -384,7 +424,6 @@ Network Capacity Utilization: ${additionalInfo['Network Capacity Utilization']}'
                   textAlign: TextAlign.center,
                 ),
               ),
-            // Results display area
             if (!_hasError && _result.isNotEmpty)
               Expanded(
                 child: Card(
@@ -393,25 +432,35 @@ Network Capacity Utilization: ${additionalInfo['Network Capacity Utilization']}'
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // Copy and Export buttons
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            TextButton.icon(
-                              icon: const Icon(Icons.copy),
-                              label: const Text('Copy'),
-                              onPressed: () => _copyToClipboard(context),
+                            // IP version indicator
+                            Chip(
+                              label: Text(_isIPv6 ? 'IPv6' : 'IPv4'),
+                              backgroundColor: _isIPv6
+                                  ? Colors.blue.shade100
+                                  : Colors.green.shade100,
                             ),
-                            const SizedBox(width: 8),
-                            TextButton.icon(
-                              icon: const Icon(Icons.download),
-                              label: const Text('Export JSON'),
-                              onPressed: _exportAsJson,
+                            // Action buttons
+                            Row(
+                              children: [
+                                TextButton.icon(
+                                  icon: const Icon(Icons.copy),
+                                  label: const Text('Copy'),
+                                  onPressed: () => _copyToClipboard(context),
+                                ),
+                                const SizedBox(width: 8),
+                                TextButton.icon(
+                                  icon: const Icon(Icons.download),
+                                  label: const Text('Export JSON'),
+                                  onPressed: _exportAsJson,
+                                ),
+                              ],
                             ),
                           ],
                         ),
                         const Divider(),
-                        // Calculation results display
                         SelectableText(
                           _result,
                           style: const TextStyle(
@@ -427,6 +476,186 @@ Network Capacity Utilization: ${additionalInfo['Network Capacity Utilization']}'
           ],
         ),
       ),
+      // Add a floating action button for quick format conversion
+      floatingActionButton: _result.isNotEmpty
+          ? FloatingActionButton(
+              onPressed: _toggleFormat,
+              tooltip: 'Toggle Format',
+              child: const Icon(Icons.swap_horiz),
+            )
+          : null,
     );
+  }
+
+  // Toggle between different address formats for IPv6
+  void _toggleFormat() {
+    if (_isIPv6 && _networkInfo != null) {
+      setState(() {
+        bool isExpanded = _result.contains(_networkInfo!.expandedAddress!);
+        String address = isExpanded
+            ? _networkInfo!.compressedAddress!
+            : _networkInfo!.expandedAddress!;
+
+        _result = _result.replaceFirst(
+          isExpanded
+              ? _networkInfo!.expandedAddress!
+              : _networkInfo!.compressedAddress!,
+          address,
+        );
+      });
+    }
+  }
+
+  // Copy results to clipboard
+  void _copyToClipboard(BuildContext context) {
+    if (_result.isNotEmpty) {
+      Clipboard.setData(ClipboardData(text: _result));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Results copied to clipboard'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  // Export network information as formatted JSON
+  void _exportAsJson() {
+    if (_networkInfo != null) {
+      final jsonString =
+          const JsonEncoder.withIndent('  ').convert(_networkInfo!.toJson());
+      Clipboard.setData(ClipboardData(text: jsonString));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('JSON exported to clipboard'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  // Helper function to convert IPv4 integer to string
+  String _intToIpv4(int ipInt) {
+    return '${(ipInt >> 24) & 255}.'
+        '${(ipInt >> 16) & 255}.'
+        '${(ipInt >> 8) & 255}.'
+        '${ipInt & 255}';
+  }
+
+  // Calculate IPv4 network parameters
+  void _calculateIPv4Network(List<int> ipOctets, int mask) {
+    int fullMask = (0xFFFFFFFF << (32 - mask)) & 0xFFFFFFFF;
+    int wildcard = ~fullMask & 0xFFFFFFFF;
+
+    int ipAsInt = (ipOctets[0] << 24) |
+        (ipOctets[1] << 16) |
+        (ipOctets[2] << 8) |
+        ipOctets[3];
+
+    int networkInt = ipAsInt & fullMask;
+    int broadcastInt = networkInt | wildcard;
+    int firstHostInt = networkInt + (mask == 32 ? 0 : 1);
+    int lastHostInt = broadcastInt - (mask == 32 ? 0 : 1);
+
+    // Format addresses
+    String ipAddress = _ipController.text;
+    String netmaskStr = _intToIpv4(fullMask);
+    String wildcardStr = _intToIpv4(wildcard);
+    String networkStr = _intToIpv4(networkInt);
+    String broadcastStr = _intToIpv4(broadcastInt);
+    String firstHostStr = _intToIpv4(firstHostInt);
+    String lastHostStr = _intToIpv4(lastHostInt);
+
+    // Calculate usable hosts
+    int totalHosts = mask == 32 ? 1 : (pow(2, (32 - mask)).toInt() - 2);
+
+    // Get network classification and details
+    String networkClass = _getIPv4NetworkClass(ipOctets);
+    Map<String, dynamic> details = _getIPv4AdditionalInfo(ipOctets, mask);
+
+    // Create NetworkInfo object
+    _networkInfo = NetworkInfo(
+      address: ipAddress,
+      netmask: netmaskStr,
+      wildcard: wildcardStr,
+      network: networkStr,
+      broadcast: broadcastStr,
+      hostMin: firstHostStr,
+      hostMax: lastHostStr,
+      hostsNet: totalHosts,
+      networkClass: networkClass,
+      binary: _ipToBinary(ipAddress),
+      cidr: mask,
+      isIPv6: false,
+      details: details,
+    );
+
+    // Format IPv4 results
+    _result = '''
+Address:   ${_padIPv4(ipAddress)}${_ipToBinary(ipAddress)}
+Netmask:   ${_padIPv4(netmaskStr)} = $mask
+Wildcard:  ${_padIPv4(wildcardStr)}
+=>
+Network:   ${_padIPv4('$networkStr/$mask')} ($networkClass)
+Broadcast: ${_padIPv4(broadcastStr)}
+HostMin:   ${_padIPv4(firstHostStr)}
+HostMax:   ${_padIPv4(lastHostStr)}
+Hosts/Net: $totalHosts
+
+Network Details:
+--------------
+Class: $networkClass
+Type: ${details['Type']}
+RFC1918: ${details['RFC1918 Compliant']}
+Default Gateway: ${details['Default Gateway']}
+Reverse DNS: ${details['Reverse DNS']}
+Subnet Bits: ${details['Subnet Bits']}
+Host Bits: ${details['Host Bits']}
+''';
+  }
+
+  // Helper function to pad IPv4 addresses for alignment
+  String _padIPv4(String ip) {
+    return ip.padRight(18);
+  }
+
+  // Convert IPv4 address to binary notation
+  String _ipToBinary(String ip) {
+    return ip
+        .split('.')
+        .map((part) => int.parse(part).toRadixString(2).padLeft(8, '0'))
+        .join('.');
+  }
+
+  // Determine IPv4 network class
+  String _getIPv4NetworkClass(List<int> ipOctets) {
+    final firstOctet = ipOctets[0];
+    if (firstOctet < 128) return 'Class A';
+    if (firstOctet < 192) return 'Class B';
+    if (firstOctet < 224) return 'Class C';
+    if (firstOctet < 240) return 'Class D (Multicast)';
+    return 'Class E (Reserved)';
+  }
+
+  // Get additional IPv4 network information
+  Map<String, dynamic> _getIPv4AdditionalInfo(List<int> ipOctets, int mask) {
+    bool isRFC1918 = (ipOctets[0] == 10) ||
+        (ipOctets[0] == 172 && ipOctets[1] >= 16 && ipOctets[1] <= 31) ||
+        (ipOctets[0] == 192 && ipOctets[1] == 168);
+
+    String networkType = isRFC1918 ? 'Private' : 'Public';
+    if (ipOctets[0] >= 224 && ipOctets[0] <= 239) {
+      networkType = 'Multicast';
+    }
+
+    return {
+      'Type': networkType,
+      'RFC1918 Compliant': isRFC1918 ? 'Yes' : 'No',
+      'Default Gateway': '${ipOctets[0]}.${ipOctets[1]}.${ipOctets[2]}.1',
+      'Reverse DNS': '${ipOctets[3]}.${ipOctets[2]}.${ipOctets[1]}'
+          '.${ipOctets[0]}.in-addr.arpa',
+      'Subnet Bits': mask,
+      'Host Bits': 32 - mask,
+    };
   }
 }
