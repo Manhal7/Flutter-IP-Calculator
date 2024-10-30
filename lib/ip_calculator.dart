@@ -1,4 +1,5 @@
 // Main application widget that sets up the theme and initial screen
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math';
@@ -413,7 +414,7 @@ Total Addresses: ${_networkInfo!.details['Total Addresses']}
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 2),
             if (_hasError)
               Container(
                 padding: const EdgeInsets.all(8),
@@ -461,13 +462,92 @@ Total Addresses: ${_networkInfo!.details['Total Addresses']}
                           ],
                         ),
                         const Divider(),
-                        SelectableText(
-                          _result,
-                          style: const TextStyle(
-                            fontFamily: 'Courier',
-                            fontSize: 14,
+                        SelectableText.rich(
+                          TextSpan(
+                            children: _result.split('\n').map((line) {
+                              if (line.trim().isEmpty) {
+                                return const TextSpan(text: '\n');
+                              }
+
+                              final colonIndex = line.indexOf(':');
+                              if (colonIndex == -1) {
+                                // if there is no : show the text normally
+                                return TextSpan(
+                                  text: '$line\n',
+                                  style: const TextStyle(
+                                    fontFamily: 'Courier',
+                                    fontSize: 14,
+                                  ),
+                                );
+                              }
+
+                              final List<TextSpan> spans = [];
+
+                              // the title with blue
+                              spans.add(TextSpan(
+                                text: line.substring(0, colonIndex + 1),
+                                style: TextStyle(
+                                  color: Colors.blue[700],
+                                  fontFamily: 'Courier',
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ));
+
+                              // Process the rest of the text to find the text between parentheses
+                              final remainingText =
+                                  line.substring(colonIndex + 1);
+                              final regExp = RegExp(r'\((.*?)\)');
+                              int lastEnd = 0;
+
+                              for (var match
+                                  in regExp.allMatches(remainingText)) {
+                                // Add text before the parenthesis
+                                if (match.start > lastEnd) {
+                                  spans.add(TextSpan(
+                                    text: remainingText.substring(
+                                        lastEnd, match.start),
+                                    style: const TextStyle(
+                                      color: Colors.black,
+                                      fontFamily: 'Courier',
+                                      fontSize: 14,
+                                    ),
+                                  ));
+                                }
+
+                                // Add text between parenthesis in green
+                                spans.add(TextSpan(
+                                  text: remainingText.substring(
+                                      match.start, match.end),
+                                  style: const TextStyle(
+                                    color: Colors.green,
+                                    fontFamily: 'Courier',
+                                    fontSize: 15,
+                                  ),
+                                ));
+
+                                lastEnd = match.end;
+                              }
+
+                              // Add any text remaining after the last parenthesis
+                              if (lastEnd < remainingText.length) {
+                                spans.add(TextSpan(
+                                  text: remainingText.substring(lastEnd),
+                                  style: const TextStyle(
+                                    color: Colors.black,
+                                    fontFamily: 'Courier',
+                                    fontSize: 14,
+                                  ),
+                                ));
+                              }
+
+                              // Add line break
+                              spans.add(const TextSpan(text: '\n'));
+
+                              return TextSpan(children: spans);
+                            }).toList(),
                           ),
-                        ),
+                        )
                       ],
                     ),
                   ),
@@ -477,34 +557,34 @@ Total Addresses: ${_networkInfo!.details['Total Addresses']}
         ),
       ),
       // Add a floating action button for quick format conversion
-      floatingActionButton: _result.isNotEmpty
-          ? FloatingActionButton(
-              onPressed: _toggleFormat,
-              tooltip: 'Toggle Format',
-              child: const Icon(Icons.swap_horiz),
-            )
-          : null,
+      // floatingActionButton: _result.isNotEmpty
+      //     ? FloatingActionButton(
+      //         onPressed: _toggleFormat,
+      //         tooltip: 'Toggle Format',
+      //         child: const Icon(Icons.swap_horiz),
+      //       )
+      //     : null,
     );
   }
 
   // Toggle between different address formats for IPv6
-  void _toggleFormat() {
-    if (_isIPv6 && _networkInfo != null) {
-      setState(() {
-        bool isExpanded = _result.contains(_networkInfo!.expandedAddress!);
-        String address = isExpanded
-            ? _networkInfo!.compressedAddress!
-            : _networkInfo!.expandedAddress!;
+  // void _toggleFormat() {
+  //   if (_isIPv6 && _networkInfo != null) {
+  //     setState(() {
+  //       bool isExpanded = _result.contains(_networkInfo!.expandedAddress!);
+  //       String address = isExpanded
+  //           ? _networkInfo!.compressedAddress!
+  //           : _networkInfo!.expandedAddress!;
 
-        _result = _result.replaceFirst(
-          isExpanded
-              ? _networkInfo!.expandedAddress!
-              : _networkInfo!.compressedAddress!,
-          address,
-        );
-      });
-    }
-  }
+  //       _result = _result.replaceFirst(
+  //         isExpanded
+  //             ? _networkInfo!.expandedAddress!
+  //             : _networkInfo!.compressedAddress!,
+  //         address,
+  //       );
+  //     });
+  //   }
+  // }
 
   // Copy results to clipboard
   void _copyToClipboard(BuildContext context) {
@@ -593,13 +673,13 @@ Total Addresses: ${_networkInfo!.details['Total Addresses']}
     // Format IPv4 results
     _result = '''
 Address:   ${_padIPv4(ipAddress)}${_ipToBinary(ipAddress)}
-Netmask:   ${_padIPv4(netmaskStr)} = $mask
-Wildcard:  ${_padIPv4(wildcardStr)}
+Netmask:   ${_padIPv4(netmaskStr)} = $mask${_ipToBinary(netmaskStr)}
+Wildcard:  ${_padIPv4(wildcardStr)}${_ipToBinary(wildcardStr)}
 =>
-Network:   ${_padIPv4('$networkStr/$mask')} ($networkClass)
-Broadcast: ${_padIPv4(broadcastStr)}
-HostMin:   ${_padIPv4(firstHostStr)}
-HostMax:   ${_padIPv4(lastHostStr)}
+Network:   ${_padIPv4('$networkStr/$mask')}${_ipToBinary(networkStr)} ($networkClass)
+Broadcast: ${_padIPv4(broadcastStr)}${_ipToBinary(broadcastStr)}
+HostMin:   ${_padIPv4(firstHostStr)}${_ipToBinary(firstHostStr)}
+HostMax:   ${_padIPv4(lastHostStr)}${_ipToBinary(lastHostStr)}
 Hosts/Net: $totalHosts
 
 Network Details:
