@@ -118,7 +118,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## 🎯 Acknowledgments
 
 - Flutter team for the amazing framework
 - Material Design for the beautiful UI guidelines
@@ -126,7 +126,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Contact
 
-Your Name - [@yourusername](https://twitter.com/yourusername)
+Your Name - [@manhal_77](https://twitter.com/manhal_77)
 
 Project Link: [https://github.com/Manhal7/flutter_ip_calculator](https://github.com/Manhal7/flutter_ip_calculator)
 
