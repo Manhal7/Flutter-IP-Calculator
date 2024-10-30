@@ -1,68 +1,135 @@
-# README.md
-# IP Calculator
+# 🌐 Flutter IP Calculator
 
-تطبيق Flutter لحساب معلومات الشبكة وتحليل عناوين IP
+A powerful and modern IP address calculator built with Flutter, supporting both IPv4 and IPv6 calculations with a beautiful Material Design interface.
 
-![Flutter Version](https://img.shields.io/badge/Flutter-3.0+-blue.svg)
-![License](https://img.shields.io/badge/License-MIT-green.svg)
 
-## المميزات 🚀
+## ✨ Features
 
-- حساب معلومات الشبكة الأساسية
-- دعم CIDR notation
-- عرض المعلومات بتنسيق ثنائي
-- تصدير النتائج بتنسيق JSON
-- واجهة مستخدم سهلة الاستخدام
-- دعم النسخ السريع للنتائج
-- تحليل نوع الشبكة وتصنيفها
-- دعم الوضع المظلم
-- متوافق مع RFC1918
+- **Dual Protocol Support**
+  - 📱 IPv4 address calculations
+  - 🚀 IPv6 address calculations
+  - 🔄 Automatic protocol detection
 
-## المتطلبات 📋
+- **Comprehensive Network Analysis**
+  - 🔍 Network/Subnet calculations
+  - 📊 CIDR notation support
+  - 🎯 Host range determination
+  - 🌐 Network class identification
 
-- Flutter (>=3.0.0)
-- Dart (>=2.19.0)
+- **IPv4 Specific Features**
+  - 📝 Network, Broadcast, and Wildcard mask calculations
+  - 🔢 Usable host range
+  - 📌 RFC 1918 compliance checking
+  - 🔄 Reverse DNS notation
 
-## التثبيت 💻
+- **IPv6 Specific Features**
+  - 🔄 Address compression/expansion
+  - 🎨 Scope identification
+  - 🏷️ Interface ID extraction
+  - 🌍 Global routing prefix detection
 
-1. قم بنسخ المستودع:
+- **Modern UI Features**
+  - 💎 Material Design 3
+  - 📋 Copy to clipboard functionality
+  - 💾 JSON export capability
+  - 📱 Responsive layout
+  - 🌙 Error handling with user feedback
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Flutter 3.0.0 or higher
+- Dart 3.0.0 or higher
+
+### Installation
+
+1. Clone the repository:
 ```bash
-git clone https://github.com/Manhal7/ip_calculator.git
+git clone https://github.com/Manhal7/flutter_ip_calculator.git
 ```
 
-2. انتقل إلى مجلد المشروع:
+2. Navigate to the project directory:
 ```bash
-cd ip_calculator
+cd flutter_ip_calculator
 ```
 
-3. قم بتثبيت التبعيات:
+3. Install dependencies:
 ```bash
 flutter pub get
 ```
 
-4. قم بتشغيل التطبيق:
+4. Run the app:
 ```bash
 flutter run
 ```
 
-## كيفية الاستخدام 📱
+## 💻 Usage
 
-1. أدخل عنوان IP في الحقل الأول
-2. أدخل قناع الشبكة CIDR في الحقل الثاني
-3. اضغط على زر "Calculate" لعرض النتائج
-4. يمكنك نسخ النتائج أو تصديرها بتنسيق JSON
+1. **Enter IP Address**
+   - Input any IPv4 or IPv6 address
+   - The app automatically detects the IP version
 
-## المساهمة 🤝
+2. **Specify Prefix Length**
+   - Enter CIDR notation (e.g., 24 for IPv4 or 64 for IPv6)
 
-نرحب بمساهماتكم! إذا كنت ترغب في المساهمة، يرجى:
+3. **Calculate**
+   - Press the calculate button
+   - View comprehensive network information
+   - Copy results or export as JSON
 
-1. عمل Fork للمشروع
-2. إنشاء فرع جديد للميزة (`git checkout -b feature/amazing-feature`)
-3. Commit التغييرات (`git commit -m 'Add amazing feature'`)
-4. Push إلى الفرع (`git push origin feature/amazing-feature`)
-5. فتح Pull Request
+### Example Inputs
 
-## الترخيص 📄
+#### IPv4
+```
+IP Address: 192.168.1.1
+Prefix Length: 24
+```
 
-هذا المشروع مرخص تحت رخصة MIT - انظر ملف [LICENSE](LICENSE) للتفاصيل.
+#### IPv6
+```
+IP Address: 2001:db8::1
+Prefix Length: 64
+```
 
+## 🛠️ Technical Details
+
+### Architecture
+- Clean, modular Flutter architecture
+- Separation of concerns between UI and calculation logic
+- Extensive error handling and input validation
+
+### Key Components
+- `NetworkInfo` class for structured data representation
+- Comprehensive IPv4 and IPv6 calculation engines
+- Material Design widgets for modern UI
+
+## 📝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📜 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Flutter team for the amazing framework
+- Material Design for the beautiful UI guidelines
+- All contributors who help improve this project
+
+## 📞 Contact
+
+Your Name - [@yourusername](https://twitter.com/yourusername)
+
+Project Link: [https://github.com/Manhal7/flutter_ip_calculator](https://github.com/Manhal7/flutter_ip_calculator)
+
+---
+
+Made with ❤️ using Flutter
