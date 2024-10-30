@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math';
 import 'dart:convert';
+import 'package:awesome_dialog/awesome_dialog.dart';
 
 // Enhanced NetworkInfo class to support both IPv4 and IPv6
 class NetworkInfo {
@@ -361,9 +362,34 @@ Total Addresses: ${_networkInfo!.details['Total Addresses']}
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('IP Calculator'),
-        centerTitle: true,
-      ),
+          title: const Text('IP Calculator'),
+          centerTitle: true,
+          actions: [
+            IconButton(
+              padding: const EdgeInsets.only(right: 30),
+              icon: const Icon(Icons.contact_phone_rounded),
+              onPressed: () {
+                AwesomeDialog(
+                  context: context,
+                  dialogType: DialogType.success,
+                  dismissOnTouchOutside: false,
+                  animType: AnimType.rightSlide,
+                  title: "!أهلاً بك",
+                  titleTextStyle: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 22,
+                      color: Colors.deepPurpleAccent),
+                  descTextStyle: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.deepPurpleAccent),
+                  desc: " Manhal: 0017576663233",
+                  btnOkText: "حسناً",
+                  btnOkOnPress: () {},
+                ).show();
+              },
+            )
+          ]),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(

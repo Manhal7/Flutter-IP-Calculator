@@ -46,12 +46,12 @@ A powerful and modern IP address calculator built with Flutter, supporting both 
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/Manhal7/flutter_ip_calculator.git
+git clone https://github.com/Manhal7/Flutter-IP-Calculator.git
 ```
 
 2. Navigate to the project directory:
 ```bash
-cd flutter_ip_calculator
+cd Flutter-IP-Calculator
 ```
 
 3. Install dependencies:
@@ -77,6 +77,22 @@ flutter run
    - Press the calculate button
    - View comprehensive network information
    - Copy results or export as JSON
+
+## 📸 Screenshots
+
+Here are some screenshots of the IP Calculator app:
+
+| Home Screen | IPv4 Calculation | IPv6 Calculation |
+|-------------|-----------------|------------------|
+| ![Home Screen](screenshots/home_screen.png) | ![IPv4 Calculation](screenshots/ipv4_calculation.png) | ![IPv6 Calculation](screenshots/ipv6_calculation.png) |
+
+## 📥 Download
+
+You can download the latest release of the IP Calculator app from the link below:
+
+[Download IP Calculator APK](https://github.com/Manhal7/Flutter-IP-Calculator/releases/download/v1.0.0/IP.Calculator.apk)
+
+
 
 ### Example Inputs
 
@@ -128,7 +144,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 Your Name - [@manhal_77](https://twitter.com/manhal_77)
 
-Project Link: [https://github.com/Manhal7/flutter_ip_calculator](https://github.com/Manhal7/flutter_ip_calculator)
+Project Link: [https://github.com/Manhal7/Flutter-IP-Calculator](https://github.com/Manhal7/flutter_ip_calculator)
 
 ---
 
